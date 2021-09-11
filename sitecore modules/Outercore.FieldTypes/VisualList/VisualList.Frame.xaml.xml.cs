@@ -19,6 +19,8 @@ using Sitecore.Resources;
 using Sitecore.Web.UI;
 using System.Collections.Specialized;
 using Sitecore.Data.Fields;
+using System.Web.Mvc;
+using Sitecore.Links.UrlBuilders;
 
 #endregion
 
@@ -151,13 +153,16 @@ namespace Outercore.FieldTypes.Carousel
             var output = new HtmlTextWriter(new StringWriter());
 
             output.Write("\r\n");
-            var ul = new TagBuilder("ul") { ID = "list" };
+            var ul = new TagBuilder("ul");
+
+            ul.MergeAttribute("ID", "list");
+
             if (Disabled)
             {
-                ul.Class = "disabled";
+                ul.AddCssClass("disabled");
             }
 
-            ul.Start(output);
+            output.Write(ul.ToString(TagRenderMode.StartTag));
             output.Write("\r\n");
 
             RenderItems(output, items);
@@ -208,7 +213,7 @@ namespace Outercore.FieldTypes.Carousel
                 if (!String.IsNullOrEmpty(Parameters["h"]))
                     iHeight = int.Parse(Parameters["h"]);
 
-                var options = new MediaUrlOptions(iWidth, iHeight, true);
+                var options = new MediaUrlBuilderOptions() { Width = iWidth, Height = iHeight, Thumbnail = true };
 
                 url = "/sitecore/shell/" + MediaManager.GetMediaUrl(media, options);
             }
@@ -220,27 +225,38 @@ namespace Outercore.FieldTypes.Carousel
             TagBuilder li = null;
             if (includeTop)
             {
-                li = new TagBuilder("li") { ID = originalItem.ID.ToString() }.Start(output);
+                li = new TagBuilder("li");
+                li.MergeAttribute("ID", originalItem.ID.ToString());
+                output.Write(li.ToString(TagRenderMode.StartTag));
             }
 
-            var container = new TagBuilder("div") { Class = "image-container" };
+            var container = new TagBuilder("div");
+
+            container.AddCssClass("image-container");
+
             if (!item.Paths.IsMediaItem)
             {
-                container.Class += " small";
+                container.AddCssClass("small");
             }
-            container.Start(output);
 
-            new TagBuilder("img").Add("src", url).Add("align", "middle").ToString(output);
+            output.Write(container.ToString(TagRenderMode.StartTag));
 
-            container.End(output);
+            var img = new TagBuilder("img");
+            img.MergeAttribute("src", url);
+            img.MergeAttribute("align", "middle");
+            output.Write(img.ToString(TagRenderMode.SelfClosing));
 
-            new TagBuilder("span") { Class = "text", InnerHtml = GetText(originalItem) }.ToString(output);
+            output.Write(container.ToString(TagRenderMode.EndTag));
+
+            var span = new TagBuilder("span") { InnerHtml = GetText(originalItem) };
+            span.AddCssClass("text");
+            output.Write(span.ToString());
 
             output.Write("<div class=\"delete\"></div>");
 
             if (includeTop)
             {
-                li.End(output);
+                output.Write(li.ToString(TagRenderMode.EndTag));
             }
 
             return output.InnerWriter.ToString();
@@ -259,7 +275,7 @@ namespace Outercore.FieldTypes.Carousel
                     result.Add(item);
                 }
                 //if id is not a valid Sitecore id and has at least one closing angle bracket
-		else if(!Sitecore.Data.ID.IsID(id) && id.IndexOf(">", System.StringComparison.Ordinal) > -1 )
+                else if (!Sitecore.Data.ID.IsID(id) && id.IndexOf(">", System.StringComparison.Ordinal) > -1)
                 {
                     // If this field used to be an Image field then the value was stored 
                     // as an XmlValue instead of just an ItemID
